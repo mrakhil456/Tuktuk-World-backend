@@ -1,9 +1,11 @@
 require('dotenv').config();
 
 const express = require('express');
+const http = require('http');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
+const { ensureAdmin } = require('./seedAdmin');
 
 const app = express();
 
@@ -15,6 +17,10 @@ const PORT = Number(process.env.PORT) || 5000;
 
 const CLIENT_URL =
   process.env.CLIENT_URL || 'http://localhost:5173';
+
+const HEALTH_CHECK_URL =
+  process.env.HEALTH_CHECK_URL ||
+  `http://localhost:${PORT}/api/health`;
 
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -111,6 +117,45 @@ app.get('/api/health', (req, res) => {
     name: 'Tuktuk World API'
   });
 });
+
+/* -------------------------------------------------------
+   Health check pinger
+------------------------------------------------------- */
+
+const pingHealthEndpoint = () => {
+  const url = new URL(HEALTH_CHECK_URL);
+
+  const req = http.get(
+    {
+      hostname: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: `${url.pathname}${url.search}`,
+      timeout: 10000
+    },
+    (res) => {
+      res.resume();
+      if (res.statusCode >= 400) {
+        console.warn(
+          `[HEALTH CHECK] Status ${res.statusCode} from ${HEALTH_CHECK_URL}`
+        );
+      }
+    }
+  );
+
+  req.on('error', (err) => {
+    console.warn(
+      `[HEALTH CHECK] Failed: ${err.message} (${HEALTH_CHECK_URL})`
+    );
+  });
+
+  req.on('timeout', () => {
+    req.destroy(new Error('Health check timeout'));
+  });
+};
+
+setInterval(() => {
+  pingHealthEndpoint();
+}, 5 * 60 * 1000);
 
 /* -------------------------------------------------------
    API Routes
@@ -210,6 +255,8 @@ const startServer = async () => {
     console.log(
       'MongoDB connected successfully.'
     );
+
+    await ensureAdmin();
 
     app.listen(PORT, () => {
       console.log(

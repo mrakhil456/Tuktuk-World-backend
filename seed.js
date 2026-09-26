@@ -11,7 +11,7 @@ const P = require('./models/Product');
 ------------------------------------------------------- */
 
 const ADMIN_EMAIL =
-  process.env.ADMIN_EMAIL || 'admin@tuktuk.world';
+  process.env.ADMIN_EMAIL || 'tuktukworld261@gmail.com';
 
 const ADMIN_MOBILE =
   process.env.ADMIN_MOBILE || '9956893895';
